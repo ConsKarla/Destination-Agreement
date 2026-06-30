@@ -1,298 +1,134 @@
-# Destination Agreement
+# Destination Agreement (Acordo no Destino)
+
+**Universidade Federal de Santa Catarina (UFSC) - Campus Araranguá**
+
+**Curso:** Engenharia de Computação
 
 ## Visão Geral
 
-O projeto **Destination Agreement** apresenta uma implementação prática
-de conceitos de **Sistemas Distribuídos**, utilizando comunicação entre
-um computador e uma placa **ESP32** para simular um mecanismo de acordo
-e confirmação de entrega de mensagens.
+O projeto **Destination Agreement** apresenta uma implementação prática de conceitos de **Sistemas Distribuídos**, utilizando comunicação serial entre um microcontrolador **ESP32** e um computador para simular um mecanismo de acordo e confirmação de entrega de mensagens baseada em Relógios Lógicos de Lamport.
 
-A proposta principal é demonstrar como dois nós independentes podem
-coordenar eventos utilizando mensagens, confirmação de recebimento e
-sincronização através de relógios lógicos.
+Para atender aos requisitos do algoritmo clássico de Acordo no Destino (que exige múltiplos nós para a ocorrência de um consenso), a arquitetura do sistema foi projetada de forma invertida e híbrida:
 
-O sistema é composto por:
+* **Cliente (ESP32):** Dispositivo embarcado responsável pela geração de eventos assíncronos (via hardware) e envio das propostas de mensagens para a rede.
+* **Cluster Servidor (Computador):** Aplicação em Python que simula virtualmente **3 Nós de Destino Independentes (Servidores A, B e C)**. Eles recebem a proposta, atualizam seus relógios lógicos individuais, realizam o consenso matemático (Acordo) e devolvem a confirmação unificada ao cliente.
 
--    **Nó 1 - Computador:** aplicação Python responsável pelo envio
-    das propostas e visualização dos eventos.
--    **Nó 2 - ESP32:** dispositivo embarcado responsável pelo
-    processamento das mensagens e confirmação do acordo.
+---
 
-------------------------------------------------------------------------
+## Objetivos
 
-#  Objetivos
+* Implementar comunicação assíncrona entre software (Python) e hardware (ESP32).
+* Demonstrar o conceito de consenso (Acordo no Destino) entre múltiplos nós distribuídos.
+* Aplicar a ordenação de eventos e sincronização causal utilizando o **Relógio Lógico de Lamport**.
+* Desenvolver uma interface gráfica moderna para monitoramento de logs e estados dos nós em tempo real.
 
-O projeto tem como objetivos:
+---
 
--   Implementar comunicação entre dois dispositivos através de
-    comunicação serial.
--   Demonstrar o conceito de acordo entre nós distribuídos.
--   Aplicar conceitos de ordenação de eventos utilizando relógio lógico.
--   Comparar comportamentos síncronos e assíncronos.
--   Integrar software desenvolvido em Python com hardware embarcado.
+## Arquitetura do Sistema
 
-------------------------------------------------------------------------
-
-# Arquitetura do Sistema
-
+```text
     +-----------------------+
-    |       Computador      |
+    |         ESP32         |
+    |    (Nó Emissor)       |
     |                       |
-    | Python + Tkinter GUI  |
-    |          Nó 1         |
+    | - Botão (Gera Evento) |
+    | - LED (Estado Espera) |
     +-----------+-----------+
                 |
+                | Comunicação Serial (USB)
+                | PROPOSE / AGREE (115200 bps)
                 |
-          Comunicação Serial
-            115200 bps
-                |
-                |
-    +-----------+-----------+
-    |          ESP32        |
-    |                       |
-    | Processamento         |
-    | Controle físico       |
-    |          Nó 2         |
-    +-----------------------+
-
-------------------------------------------------------------------------
-
-# Tecnologias Utilizadas
-
-## Software
-
--   Python 3
--   Tkinter para interface gráfica
--   PySerial para comunicação serial
--   Arduino IDE para programação do ESP32
-
-## Hardware
-
--   ESP32
--   LED integrado
--   Botão físico para confirmação manual
-
-------------------------------------------------------------------------
-
-# Estrutura do Projeto
-
-    Destination-Agreement/
-    │
-    ├── README.md
-    │
-    ├── main.py
-    │   └── Aplicação gráfica do computador
-    │
-    └── sketch_jun23a.ino
-        └── Código embarcado do ESP32
-
-------------------------------------------------------------------------
-
-# Funcionamento do Sistema
-
-O computador inicia uma comunicação com o ESP32 através da porta serial.
-
-A aplicação permite enviar mensagens utilizando dois modos:
-
-## 1. Acordo Instantâneo
-
-Neste modo, a mensagem é enviada ao ESP32 e aprovada automaticamente.
-
-Fluxo:
-
-    Computador
-        |
-        | PROPOSE
-        ↓
-     ESP32
-        |
-        | AGREE
-        ↓
-    Computador
-
-------------------------------------------------------------------------
-
-## 2. Acordo Assíncrono
-
-Neste modo, o ESP32 recebe a mensagem, porém aguarda uma confirmação
-externa através do botão físico.
-
-Fluxo:
-
-    Computador
-        |
-        | PROPOSE
-        ↓
-     ESP32
-        |
-     Aguarda botão
-        |
-        ↓
-     AGREE
-        |
-    Computador
-
-Esse modo representa uma situação onde a decisão depende de um evento
-externo ao sistema computacional.
-
-------------------------------------------------------------------------
-
-# Protocolo de Comunicação
-
-As mensagens seguem um protocolo simples baseado em texto.
-
-## Envio da proposta
-
-Formato:
-
-    PROPOSE|ID|TIMESTAMP|MODE
-
-Exemplo:
-
-    PROPOSE|1|5|0
-
-Significado:
-
-  Campo       Descrição
-  ----------- ---------------------------
-  ID          Identificador da mensagem
-  TIMESTAMP   Relógio lógico do emissor
-  MODE        Tipo de acordo
-
-------------------------------------------------------------------------
-
-## Resposta de confirmação
-
-Formato:
-
-    AGREE|ID|TIMESTAMP
-
-Exemplo:
-
-    AGREE|1|6
-
-Indica que a mensagem foi aceita e entregue.
-
-------------------------------------------------------------------------
-
-# Relógio Lógico
-
-Para manter uma ordem dos eventos entre os dispositivos, o projeto
-utiliza uma adaptação do **Relógio de Lamport**.
-
-A atualização segue:
-
-    Cnovo = max(Clocal, Crecebido) + 1
-
-Essa técnica permite ordenar eventos distribuídos sem depender de um
-relógio físico compartilhado.
-
-------------------------------------------------------------------------
-
-#  Interface Gráfica
-
-A aplicação Python apresenta:
-
--   Conexão automática com ESP32.
--   Botão para envio instantâneo.
--   Botão para envio assíncrono.
--   Área de logs do sistema.
--   Monitoramento das mensagens recebidas.
-
-Exemplo de execução:
-
-    [SISTEMA] Conectado ao ESP32
-
-    -> PROPOSTA
-    Mensagem: 1
-    Timestamp: 2
-    Modo: Instantâneo
-
-    <- ACORDO FEITO
-
-    Mensagem entregue.
-    Novo relógio: 4
-
-------------------------------------------------------------------------
-
-# Fluxo Geral do Algoritmo
-
-1.  Usuário seleciona o tipo de acordo.
-2.  Computador incrementa seu relógio lógico.
-3.  Uma mensagem PROPOSE é enviada ao ESP32.
-4.  ESP32 recebe e processa a solicitação.
-5.  O relógio lógico é atualizado.
-6.  O ESP32 envia a confirmação AGREE.
-7.  Computador registra a entrega.
-
-------------------------------------------------------------------------
-
-# Resultados Esperados
-
-Com a execução do projeto é possível observar:
-
-✅ Comunicação entre processos distribuídos\
-✅ Troca de mensagens entre dispositivos\
-✅ Sincronização através de relógios lógicos\
-✅ Diferença entre eventos síncronos e assíncronos\
-✅ Integração entre aplicação desktop e sistema embarcado
-
-------------------------------------------------------------------------
-
-# Como Executar
-
-## ESP32
-
-1.  Abrir o arquivo:
-
-```{=html}
-<!-- -->
-```
-    sketch_jun23a.ino
-
-2.  Compilar e enviar para a placa ESP32.
-
-Configuração serial:
-
-    Baud Rate: 115200
-
-------------------------------------------------------------------------
-
-## Python
-
-Instalar dependência:
-
-``` bash
-pip install pyserial
+    +-----------+---------------------------------+
+    |               COMPUTADOR                    |
+    |        (Cluster de Destino - Python)        |
+    |                                             |
+    |  +------------+ +------------+ +---------+  |
+    |  | Servidor A | | Servidor B | |ServidorC|  |
+    |  +------------+ +------------+ +---------+  |
+    |         \             |             /       |
+    |          \            |            /        |
+    |           +-----------------------+         |
+    |           | CONSENSO (Max Clock)  |         |
+    |           +-----------------------+         |
+    +---------------------------------------------+
 ```
 
-Executar:
+---
 
-``` bash
-python main.py
-```
+## Tecnologias Utilizadas
 
-------------------------------------------------------------------------
+### Software
+* **Python 3:** Lógica de roteamento e servidores virtuais.
+* **CustomTkinter:** Biblioteca para construção de Interface Gráfica moderna (Dark Mode).
+* **PySerial:** Integração de comunicação serial USB.
+* **Arduino IDE (C++):** Programação do firmware do ESP32.
 
-# Conceitos Aplicados
+### Hardware
+* **ESP32:** Microcontrolador principal.
+* **LED e Resistor:** Indicador visual de estado de latência/espera (Pino D2).
+* **Push Button:** Acionador manual de eventos usando resistor interno de *pull-up* (Pino D4).
 
--   Sistemas Distribuídos
--   Comunicação Serial
--   Message Passing
--   Relógios Lógicos
--   Ordenação de Eventos
--   Sistemas Embarcados
--   Comunicação Hardware-Software
+---
 
-------------------------------------------------------------------------
+## Funcionamento do Sistema e Fluxo do Algoritmo
 
-# Conclusão
+O sistema demonstra o tratamento de eventos assíncronos. A interação ocorre da seguinte forma:
 
-O projeto demonstra uma aplicação prática dos conceitos estudados em
-sistemas distribuídos, mostrando como dispositivos independentes podem
-estabelecer acordos, trocar informações e manter uma ordem consistente
-de eventos.
+1. **Geração do Evento:** O usuário pressiona o botão físico no ESP32.
+2. **Proposta:** O ESP32 incrementa seu relógio lógico e envia uma mensagem `PROPOSE` via porta serial. O LED acende e o ESP32 entra em estado de bloqueio (aguardando o acordo).
+3. **Processamento Distribuído:** O Computador recebe a proposta e a repassa para os 3 Servidores (A, B e C).
+4. **Sincronização de Lamport:** Cada servidor atualiza seu próprio relógio baseado na fórmula: `Cnovo = max(Clocal, Crecebido) + 1`.
+5. **O Acordo no Destino:** O sistema realiza o consenso selecionando o **maior timestamp** gerado entre os três nós, garantindo a ordenação matemática e determinística do evento.
+6. **Confirmação:** O Computador envia a mensagem `AGREE` de volta ao ESP32 contendo o timestamp validado.
+7. **Entrega:** O ESP32 recebe o acordo, atualiza seu próprio relógio, apaga o LED (sinalizando a entrega oficial da mensagem) e libera o sistema para um novo envio.
 
-A integração entre Python e ESP32 permite visualizar, de forma
-experimental, problemas clássicos de comunicação distribuída e suas
-soluções utilizando protocolos simples e mecanismos de sincronização.
+---
+
+## Protocolo de Comunicação
+
+O protocolo foi projetado em texto puro e os parâmetros são separados por *pipes* (`|`).
+
+### Envio da Proposta (Cliente -> Servidor)
+* **Formato:** `PROPOSE|ID|TIMESTAMP`
+* **Exemplo:** `PROPOSE|1|5`
+* **Descrição:** O Cliente solicita a entrega da mensagem de identificador `1`, com o seu relógio lógico atual em `5`.
+
+### Resposta de Confirmação (Servidor -> Cliente)
+* **Formato:** `AGREE|ID|TIMESTAMP_ACORDADO`
+* **Exemplo:** `AGREE|1|6`
+* **Descrição:** O Cluster Servidor confirma que o consenso foi atingido e o timestamp final da operação em toda a rede será `6`.
+
+---
+
+## Interface Gráfica (GUI)
+
+A aplicação desktop foi modernizada com `CustomTkinter` e apresenta:
+* Painel em tempo real exibindo os 3 Nós Servidores Virtuais e seus respectivos relógios lógicos.
+* Terminal integrado de Logs detalhando cada etapa do consenso (recebimento, cálculo de Lamport em cada nó, acordo de valor máximo e resposta).
+
+---
+
+## Como Executar
+
+### 1. Configuração do Hardware (ESP32)
+1. Abra o código `sketch.ino` na **Arduino IDE**.
+2. Conecte um LED ao pino **D2** (GPIO2) e um Push Button ao pino **D4** (GPIO4).
+3. Compile e faça o upload para a placa.
+4. *Importante:* Feche a Arduino IDE para liberar a porta Serial.
+
+### 2. Configuração do Software (Computador)
+1. Instale as dependências necessárias utilizando o terminal:
+   ```bash
+   pip install pyserial customtkinter
+   ```
+2. Verifique no arquivo `main.py` se a variável `PORTA_SERIAL` corresponde à porta conectada ao seu ESP32 (ex: `COM6`).
+3. Execute a interface gráfica:
+   ```bash
+   python main.py
+   ```
+
+---
+
+## Conclusão
+
+Este projeto demonstra com sucesso a abstração e aplicação dos conceitos de Sistemas Distribuídos. A inversão da arquitetura tradicional permitiu criar um ambiente prático onde um único dispositivo IoT (ESP32) interage ativamente com um cluster simulado, validando na prática a exclusão mútua, a sincronização de relógios de Lamport e a eficácia de algoritmos de consenso diante de latências inseridas no mundo físico.
