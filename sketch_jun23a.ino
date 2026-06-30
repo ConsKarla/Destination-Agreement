@@ -1,77 +1,59 @@
 #include <Arduino.h>
 
-// --- PINOS ---
-const int LED_PIN = 2;    // Pino do LED
-const int BOTAO_PIN = 4;  // Pino do Botão (com resistor interno)
+const int LED_PIN = 2;
+const int BOTAO_PIN = 4;
 
-// --- VARIÁVEIS DO ALGORITMO ---
 int local_clock = 0;
-bool mensagem_pendente = false;
-int msg_id_pendente = 0;
+int msg_counter = 1;
+bool aguardando_acordo = false; // espera servidor responder
 
 void setup() {
     pinMode(LED_PIN, OUTPUT);
-    pinMode(BOTAO_PIN, INPUT_PULLUP); 
+    pinMode(BOTAO_PIN, INPUT_PULLUP);
     
     Serial.begin(115200);
-    while (!Serial) {;}
-    Serial.println("ESP32_READY");
+    while (!Serial) {;} // roda até o serial ficar 100% pronto
+    Serial.println("ESP32_CLIENT_READY");
 }
 
 void loop() {
-    // 1. RECEBE NOVA MENSAGEM DO PC
-    if (Serial.available() > 0 && !mensagem_pendente) {
-        String incomingMessage = Serial.readStringUntil('\n');
-        incomingMessage.trim(); 
+    // 1. CLIENTE GERA A MENSAGEM (Ao apertar o botão físico)
+    if (digitalRead(BOTAO_PIN) == LOW && !aguardando_acordo) {
+        
+        local_clock++; // Incrementa relógio antes de enviar
+        int msg_id = msg_counter;
+        msg_counter++;
 
-        if (incomingMessage.startsWith("PROPOSE|")) {
-            // Separa os dados pelos divisores "|"
-            int p1 = incomingMessage.indexOf('|');
-            int p2 = incomingMessage.indexOf('|', p1 + 1);
-            int p3 = incomingMessage.indexOf('|', p2 + 1);
-            
-            int msg_id = incomingMessage.substring(p1 + 1, p2).toInt();
-            int proposed_timestamp = incomingMessage.substring(p2 + 1, p3).toInt();
-            int modo = incomingMessage.substring(p3 + 1).toInt(); // 0 = Instantâneo, 1 = Botão
+        // Envia a proposta para os 3 Servidores no PC
+        Serial.print("PROPOSE|");
+        Serial.print(msg_id);
+        Serial.print("|");
+        Serial.println(local_clock);
 
-            // Lógica de Lamport (Sincronização do Acordo)
-            local_clock = max(local_clock, proposed_timestamp) + 1;
-
-            // ACENDE O LED
-            digitalWrite(LED_PIN, HIGH);
-
-            if (modo == 1) {
-                // MODO ASSÍNCRONO: Trava e espera o botão
-                mensagem_pendente = true;
-                msg_id_pendente = msg_id;
-            } else {
-                // MODO INSTANTÂNEO: Devolve a mensagem imediatamente
-                Serial.print("AGREE|");
-                Serial.print(msg_id);
-                Serial.print("|");
-                Serial.println(local_clock);
-                
-                delay(50); 
-                digitalWrite(LED_PIN, LOW); // Apaga o LED na hora
-            }
-        }
+        digitalWrite(LED_PIN, HIGH); // acende o LED
+        aguardando_acordo = true;    // trava para não mandar 100 mensagens de uma vez
+        
+        delay(300);
     }
 
-    // 2. VERIFICA O BOTÃO (Apenas se houver mensagem pendente)
-    if (mensagem_pendente) {
-        if (digitalRead(BOTAO_PIN) == LOW) { 
-            
-            // Realiza o Acordo no Destino
-            Serial.print("AGREE|");
-            Serial.print(msg_id_pendente);
-            Serial.print("|");
-            Serial.println(local_clock);
+    // recebe a resposta
+    if (Serial.available() > 0 && aguardando_acordo) {
+        String incomingMessage = Serial.readStringUntil('\n'); // le até \n
+        incomingMessage.trim(); // limpa mensagem
 
-            // APAGA O LED
-            digitalWrite(LED_PIN, LOW);
-            mensagem_pendente = false; 
+        if (incomingMessage.startsWith("AGREE|")) {
+            int p1 = incomingMessage.indexOf('|');
+            int p2 = incomingMessage.indexOf('|', p1 + 1);
             
-            delay(300); // Debounce do botão
+            int msg_id = incomingMessage.substring(p1 + 1, p2).toInt();
+            int agreed_timestamp = incomingMessage.substring(p2 + 1).toInt();
+
+            // atualiza relógio
+            local_clock = max(local_clock, agreed_timestamp) + 1;
+
+            // apaga led
+            digitalWrite(LED_PIN, LOW);
+            aguardando_acordo = false; // libera para apertar o botão novamente
         }
     }
 }
